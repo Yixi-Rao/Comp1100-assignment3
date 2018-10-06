@@ -322,7 +322,7 @@ MTD(f) which attempt to improve on Alpha-Beta pruning.
 
 You're required to submit an AI which can play Othello called
 `"default`". (i.e if I call
-`cabal run othello -- -p "default" -P "default` I should be able to
+`cabal run othello -- -p "default" -P "default"` I should be able to
 watch it play against itself.)
 
 You can include as many other AIs as you'd like, but `"default"` should
