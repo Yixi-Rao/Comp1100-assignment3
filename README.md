@@ -207,7 +207,7 @@ Run `cabal run othello --help` and you should see something like
 Usage: othello [OPTION...]
   -T GAMETYPE    --type=GAMETYPE      The type of the game. One of console, gui, host, join and tournament. Defaults to gui.
   -t TIMEOUT     --timeout=TIMEOUT    The timeout (in seconds) for the game.
-  -p PLAYER1     --player1=PLAYER1    Player 1 (or the only player for single player games. HUMAN if a human player. Defaults to human.
+  -p PLAYER1     --player1=PLAYER1    Player 1 (or the only player for single player games). HUMAN if a human player. Defaults to human.
   -P PLAYER2     --player2=PLAYER2    Player 2 (HUMAN if a human player). Defaults to the AI helloWorld.
   -h HOSTNAME    --hostname=HOSTNAME  Hostname of the computer to connect to for a network game or tournament.
   -n PORTNUMBER  --port=PORTNUMBER    The port number to connect to or host on for a network game. Defaults to 9001.
@@ -237,7 +237,7 @@ against itself. The final position should look like.
 
 ### Making a good move
 
-To make a good AI. We need to have a way of deciding what is, and what
+To make a good AI, we need to have a way of deciding what is, and what
 isn't a good move. A good place to start, is by trying to work out what
 are, and what aren't, good board positions. As you may have noticed,
 the score given in the game can move by quite a bit in a single turn,
@@ -296,7 +296,7 @@ of time. Unfortunately in the GUI, the depth of the search isn't
 displayed, but if you run it in `console` mode (remember, you can see
 the options at any time with `cabal run othello -- --help`) it will
 tell you how far it looks ahead. _If it's returning a very large
-number that probably means you've searched to the end of the tree_
+number, that probably means you've searched to the end of the tree._
 
 There are several optimisations to minimax, but one of the most effective
 is known as
