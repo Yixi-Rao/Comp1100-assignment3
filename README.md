@@ -84,7 +84,7 @@ read the documentation and try using it yourself inside GHCi.
 ### The framework
 
 The framework consists of several files, many of which are of little
-interest to you. In particular anything the file `Main.hs` can be
+interest to you. In particular anything in the file `Main.hs` can be
 ignored, as well as anything in the folder `Dragons`.
 (On medieval maps they drew pictures of dragons or sea monsters on
 uncharted areas, and the code contained in these files is
