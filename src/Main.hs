@@ -20,29 +20,41 @@ import Dragons.GUI
 import Game
 import GameState
 
+-- A transcript for a game - recorded backwards
+-- i.e last played move at the head of the list
+type Transcript = [(Int,Int)]
+
+-- Convert a transcript to a string in the expected
+-- order
+ppTranscript :: Transcript -> String
+ppTranscript = concatMap (\(col,row) -> [ ['A'..'H'] !! col
+                                        , ['1'..'8'] !! row])
+             . reverse
+
 main :: IO ()
 main = do
   config <- parseGameConfig
   case config of
     HelpConfig message -> putStrLn message
     ConsoleConfig p1 p2 timeout ->
-      playConsoleGame p1 p2 timeout initialGame
+      playConsoleGame p1 p2 timeout initialGame []
     GUIConfig p1 p2 timeout ->
-      playGUIGame p1 p2 timeout initialGame
+      playGUIGame p1 p2 timeout initialGame []
     NetHostConfig{} -> error "Hosting network game not yet implemented"
     NetClientConfig{} -> error "Joining network game not yet implemented"
     TournamentConfig{} -> error "Tournament game not yet implemented"
 
-playConsoleGame :: Maybe AI -> Maybe AI -> Double -> Game -> IO ()
+playConsoleGame :: Maybe AI -> Maybe AI -> Double -> Game
+                -> Transcript -> IO ()
 playConsoleGame player1 player2 timeout = go 
   where
     -- Step the game
-    go game = do
+    go game transcript = do
       putStrLn (ppGame game)
       case turn game of
-        Nothing -> return ()
-        Just Dark -> darkMove game >>= go
-        Just Light -> lightMove game >>= go
+        Nothing -> putStrLn $ "Transcript: " ++ ppTranscript transcript
+        Just Dark -> darkMove game transcript >>= uncurry go
+        Just Light -> lightMove game transcript >>= uncurry go
     -- Move for the dark player
     darkMove = case player1 of
       Nothing -> humanMove Dark
@@ -52,7 +64,7 @@ playConsoleGame player1 player2 timeout = go
       Nothing -> humanMove Light
       Just ai -> aiMove ai Light
     -- Make a move for an AI
-    aiMove ai player game = do
+    aiMove ai player game transcript = do
       move <- timeoutTake timeout (zip [1 :: Int ..] (ai timeout game))
       case move of
         Nothing -> error (show player ++ " failed to make a move in time")
@@ -62,10 +74,10 @@ playConsoleGame player1 player2 timeout = go
             Just game' -> do
               putStrLn (show player ++ " had a lookahead of " 
                        ++ show lookahead)
-              return game'
+              return (game', (col,row):transcript)
     -- Make a move for a Human (or more accurately, wait for a move
     -- from a human)
-    humanMove player game = do
+    humanMove player game transcript = do
       putStrLn ("Please make a move (e.g. d3) for " ++ show player)
       move <- getLine
       case map toLower move of
@@ -73,16 +85,17 @@ playConsoleGame player1 player2 timeout = go
                 r `elem` ['1'..'8'],
                 col <- ord c - ord 'a',
                 row <- ord r - ord '1',
-                Just game' <- play col row game -> return game'
+                Just game' <- play col row game ->
+                  return (game', (col,row):transcript)
         _ -> do
           putStrLn (ppGame game)
           -- Print "Invalid move" after reprinting the board to
           -- make it clearer something has gone wrong
           putStrLn ("Invalid move (" ++ move ++ ")")
-          humanMove player game
+          humanMove player game transcript
 
-playGUIGame :: Maybe AI -> Maybe AI -> Double -> Game -> IO ()
-playGUIGame player1 player2 timeout g = do
+playGUIGame :: Maybe AI -> Maybe AI -> Double -> Game -> Transcript -> IO ()
+playGUIGame player1 player2 timeout g t = do
   putStrLn "See the game at http://127.0.0.1:3000"
   runGUI $ \moves toDraw ->
     -- Visually crash
@@ -90,17 +103,17 @@ playGUIGame player1 player2 timeout g = do
                                           [DrawTable, Fail (show e)]
                        throwIO (e :: SomeException))) $ do
       atomically $ mapM_ (writeTChan toDraw) (drawGame g)
-      go moves toDraw g
+      go moves toDraw g t
   where
     -- Step the game
-    go moves toDraw game@(Game _ board) = do
+    go moves toDraw game@(Game _ board) transcript = do
       atomically $ mapM_ (writeTChan toDraw)
         [ DrawTurn (turn game)
         , DrawScores (currentScore Dark board) (currentScore Light board)]
       case turn game of
-        Nothing -> return ()
-        Just Dark -> darkMove >>= go moves toDraw
-        Just Light -> lightMove >>= go moves toDraw
+        Nothing -> putStrLn $ "Transcript: " ++ ppTranscript transcript
+        Just Dark -> darkMove >>= uncurry (go moves toDraw)
+        Just Light -> lightMove >>= uncurry (go moves toDraw)
     -- Move for the dark player
       where
         darkMove = case player1 of
@@ -121,7 +134,7 @@ playGUIGame player1 player2 timeout g = do
                 Just game' -> do
                   animateMove player col row game game' toDraw
                   atomically $ writeTChan toDraw (DrawPiece player col row)
-                  return game'
+                  return (game', (col,row):transcript)
         -- Make a move for a Human (or more accurately, wait for a move
         -- from a human)
         humanMove player = do
@@ -135,10 +148,11 @@ playGUIGame player1 player2 timeout g = do
               humanMove player
             Just game' -> do
               animateMove player col row game game' toDraw
-              return game'
+              return (game', (col,row):transcript)
 
 
-animateMove :: Player -> Int -> Int -> Game -> Game -> TChan GUIAction -> IO ()
+animateMove :: Player -> Int -> Int -> Game -> Game
+            -> TChan GUIAction -> IO ()
 animateMove player col row (Game _ board) (Game _ board') toDraw = do
   atomically $ writeTChan toDraw (DrawPiece player col row)
   let diffs = [(y,x) | (x, ps) <- zip [0 ..]
