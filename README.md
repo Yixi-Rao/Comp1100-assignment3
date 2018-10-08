@@ -201,7 +201,7 @@ against it. `cabal run othello` runs the program with the default
 settings. That is, a human player playing against an AI called
 `"helloWorld"`. To do something different than the default settings,
 you'll need to give the program arguments.
-Run `cabal run othello --help` and you should see something like
+Run `cabal run othello -- --help` and you should see something like
 
 ```
 Usage: othello [OPTION...]
