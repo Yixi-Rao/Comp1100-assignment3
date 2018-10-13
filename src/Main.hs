@@ -7,7 +7,7 @@ License     : GPL-3
 -}
 module Main where
 
-import safe AI
+import safe AI (AI)
 import Config
 import Control.Concurrent
 import Control.Concurrent.STM
