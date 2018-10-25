@@ -140,14 +140,14 @@ ais = [("default", makeBestMove), ("helloWorld", makeFirstLegalMove)]
 Alright, we've now registered an AI called `"helloWorld"` which is
 defined by the function `makeFirstLegalMove`. Now we just need to define
 the `makeFirstLegalMove` function. For Othello we have an 8x8 board,
-and because we index from 0, a move is defined as pair `(row,col)` where
+and because we index from 0, a move is defined as pair `(col,row)` where
 both `row` and `col` are between 0 and 7 (inclusive). We can easily make
 a list of all possible moves using a list comprehension.
 
 ```haskell
 -- | A list of possible moves for the players.
 possibleMoves :: [(Int,Int)]
-possibleMoves = [(row,col) | row <- [0..7], col <- [0..7]]
+possibleMoves = [(col,row) | row <- [0..7], col <- [0..7]]
 ```
 
 Add this to your `AI.hs` file.
@@ -163,7 +163,7 @@ legalMoves (Game Nothing _) = [] -- The game is over
 legalMoves (Game (Just player) board) =
   filter legalForThisGame possibleMoves
   where
-    legalForThisGame (row,col) = legalMove row col player board
+    legalForThisGame (col,row) = legalMove col row player board
 ```
 
 So now we have a function, which given a game can tell us what all the
