@@ -176,7 +176,12 @@ flushChan chan = do
     Just _ -> flushChan chan
 
 hostNetGame :: AI -> Double -> Integer -> IO ()
-hostNetGame ai timeout port = host port (start initialGame [])
+hostNetGame ai timeout port = do
+  putStrLn $ "Ready for network game. If in the CSIT labs,"
+        ++ "the hostname is 192.168.roomNumber.computerNumber\n"
+        ++ "you can find it by running \"ip a | grep 192.168\" in the "
+        ++ "terminal and looking for the numbers before /24."
+  host port (start initialGame [])
   where
     start game transcript recv send end = do
       message <- atomically $ readTChan recv

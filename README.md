@@ -209,7 +209,7 @@ Usage: othello [OPTION...]
   -t TIMEOUT     --timeout=TIMEOUT    The timeout (in seconds) for the game.
   -p PLAYER1     --player1=PLAYER1    Player 1 (or the only player for single player games). HUMAN if a human player. Defaults to human.
   -P PLAYER2     --player2=PLAYER2    Player 2 (HUMAN if a human player). Defaults to the AI helloWorld.
-  -h HOSTNAME    --hostname=HOSTNAME  Hostname of the computer to connect to for a network game or tournament.
+  -H HOSTNAME    --hostname=HOSTNAME  Hostname of the computer to connect to for a network game or tournament.
   -n PORTNUMBER  --port=PORTNUMBER    The port number to connect to or host on for a network game. Defaults to 9001.
   -h             --help               Prints this help message and exits.
 

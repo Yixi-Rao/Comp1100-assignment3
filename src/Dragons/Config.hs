@@ -37,7 +37,7 @@ parseGameConfig = do
           \ HUMAN if a human player. Defaults to human."
       , Option ['P'] ["player2"] (ReqArg (Player2 . toPlayer) "PLAYER2")
           "Player 2 (HUMAN if a human player). Defaults to the AI helloWorld."
-      , Option ['h'] ["hostname"] (ReqArg Hostname "HOSTNAME")
+      , Option ['H'] ["hostname"] (ReqArg Hostname "HOSTNAME")
           "Hostname of the computer to connect to for a network game\
           \ or tournament."
       , Option ['n'] ["port"] (ReqArg (PortNum . toPortNum) "PORTNUMBER")
