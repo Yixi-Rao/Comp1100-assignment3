@@ -9,14 +9,16 @@ module Main where
 
 import safe AI
 import Config
+import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception
-import Control.Monad
+import Control.Monad hiding (join)
 import Data.Char (ord, toLower)
 import Dragons.Timeout
 import Dragons.Config
 import Dragons.GUI
+import Dragons.Network
 import Game
 import GameState
 
@@ -40,8 +42,10 @@ main = do
       playConsoleGame p1 p2 timeout initialGame []
     GUIConfig p1 p2 timeout ->
       playGUIGame p1 p2 timeout initialGame []
-    NetHostConfig{} -> error "Hosting network game not yet implemented"
-    NetClientConfig{} -> error "Joining network game not yet implemented"
+    NetHostConfig ai timeout port ->
+      hostNetGame ai timeout port
+    NetClientConfig ai hostname port ->
+      joinNetGame ai hostname port
     TournamentConfig{} -> error "Tournament game not yet implemented"
 
 playConsoleGame :: Maybe AI -> Maybe AI -> Double -> Game
@@ -170,3 +174,89 @@ flushChan chan = do
   case next of
     Nothing -> return ()
     Just _ -> flushChan chan
+
+hostNetGame :: AI -> Double -> Integer -> IO ()
+hostNetGame ai timeout port = host port (start initialGame [])
+  where
+    start game transcript recv send end = do
+      message <- atomically $ readTChan recv
+      case message of
+        JoinGame -> do
+          atomically $ writeTChan send (StartGame timeout)
+          ourMove ai game transcript timeout recv send end
+        _ -> error $ "hostNetGame:start: Bad message " ++ show message
+
+joinNetGame :: AI -> String -> Integer -> IO ()
+joinNetGame ai hostname port = join hostname port start
+  where
+    start recv send end = do
+      atomically (writeTChan send JoinGame)
+      message <- atomically $ readTChan recv
+      case message of
+        StartGame timeout -> theirMove ai initialGame [] timeout recv send end
+        _ -> do
+          putStrLn $ "joinNetGame:start : Bad message " ++ show message
+          end
+
+endGame :: Game -> Transcript -> TChan NetMessage
+        -> TChan NetMessage -> IO () -> IO ()
+endGame game transcript recv send end = do
+  putStrLn (ppGame game)
+  atomically $ writeTChan send Finished
+  Just Finished <- readTChanTimeout 1 recv
+  putStrLn $ "Transcript: " ++ ppTranscript transcript
+  end
+
+ourMove :: AI -> Game -> Transcript -> Double
+        -> TChan NetMessage -> TChan NetMessage -> IO () -> IO ()
+ourMove _ g@(Game Nothing _) transcript _ recv send end =
+  endGame g transcript recv send end
+ourMove ai game transcript timeout recv send end = do
+  putStrLn (ppGame game)
+  move <- timeoutTake timeout (zip [1 :: Int ..] (ai timeout game))
+  case move of
+    Nothing -> putStrLn "We failed to make a move in time" >> end
+    Just (lookahead, (col, row)) ->
+      case play col row game of
+        Nothing -> putStrLn "We made an invalid move" >> end
+        Just game' -> do
+          putStrLn ("We  had a lookahead of "
+                    ++ show lookahead)
+          atomically $ writeTChan send (MakeMove (NetGame game') (col, row))
+          (if turn game == turn game' then ourMove else theirMove) ai
+            game' ((col,row): transcript) timeout recv send end
+
+
+theirMove :: AI -> Game -> Transcript -> Double
+          -> TChan NetMessage -> TChan NetMessage -> IO () -> IO ()
+theirMove _ g@(Game Nothing _) transcript _ recv send end =
+  endGame g transcript recv send end
+theirMove ai game transcript timeout recv send end = do
+  putStrLn (ppGame game)
+  move <- readTChanTimeout (timeout+0.2) recv
+  case move of
+    Nothing -> do
+      putStrLn "They failed to make a move in time"
+      atomically $ writeTChan send (Disconnect "You took too long")
+      end
+    Just (MakeMove (NetGame game') (col,row))
+      | Just game' /= play col row game -> do
+          putStrLn "They made an illegal move"
+          atomically $ writeTChan send (Disconnect "They made an illegal move")
+          end
+      | turn game == turn game' -> theirMove ai game' ((col,row):transcript)
+                                     timeout recv send end
+      | otherwise -> ourMove ai game' ((col,row):transcript)
+                       timeout recv send end
+    Just mess -> putStrLn ("Unexpected message: " ++ show mess) >> end
+
+
+
+  return ()
+
+readTChanTimeout :: Double -> TChan a -> IO (Maybe a)
+readTChanTimeout timeout chan = do
+  delay <- registerDelay (round $ timeout * 1000000)
+  atomically $
+        Just <$> readTChan chan
+    <|> Nothing <$ (check <=< readTVar) delay

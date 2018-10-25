@@ -13,9 +13,10 @@ cabal-version:        >=1.10
 
 executable othello
   main-is:              Main.hs
-  other-modules:        AI, Config, Dragons.GUI, Dragons.Timeout, Dragons.Config, Game, GameState
+  other-modules:        AI, Config, Dragons.GUI, Dragons.Timeout, Dragons.Config, Dragons.Network, Game, GameState
   build-depends:        base >= 4.7 && < 5, blank-canvas, text, stm, array
                       , bytestring, containers, hashable, network, unordered-containers
+                      , binary
   hs-source-dirs:       src
   default-language:     Haskell2010
   ghc-options:          -O2 -threaded -Wall -Werror -Widentities -Wredundant-constraints -Wno-unrecognised-warning-flags -Wno-missing-home-modules
