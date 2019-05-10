@@ -1,0 +1,51 @@
+name:                comp1100-assignment3
+synopsis:            COMP1100 Assignment 3 - Sushi Go
+version:             0.1.0.0
+license:             AllRightsReserved
+author:              Jack Kelly
+maintainer:          jack@jackkelly.name
+copyright:           2018 The Australian National University
+category:            Graphics
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     AI
+                     , Dragons.Moves
+                     , Dragons.SushiGo
+                     , ListUtils
+                     , SushiGo
+                     , TextLayout
+  build-depends:       base >= 4.7 && < 4.13
+                     , random >= 1.1 && < 1.2
+  hs-source-dirs:      src
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+
+executable sushigo
+  main-is:             Main.hs
+  build-depends:       base >= 4.7 && < 4.13
+                     , comp1100-assignment3
+  hs-source-dirs:      app
+  ghc-options:         -threaded -Wall
+  default-language:    Haskell2010
+
+executable duel
+  main-is:             Main.hs
+  build-depends:       base >= 4.7 && < 4.13
+                     , comp1100-assignment3
+  hs-source-dirs:      duel
+  ghc-options:         -threaded -Wall
+  default-language:    Haskell2010
+
+test-suite sushigo-test
+  type:                exitcode-stdio-1.0
+  main-is:             AllTests.hs
+  other-modules:       SushiGoTests
+                     , Testing
+  build-depends:       base >= 4.7 && < 4.13
+                     , comp1100-assignment3
+                     , tagged >= 0.8.6 && < 0.9
+  hs-source-dirs:      test
+  ghc-options:         -threaded -Wall
+  default-language:    Haskell2010
