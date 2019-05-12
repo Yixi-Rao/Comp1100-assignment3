@@ -45,7 +45,6 @@ test-suite sushigo-test
                      , Testing
   build-depends:       base >= 4.7 && < 4.13
                      , comp1100-assignment3
-                     , tagged >= 0.8.6 && < 0.9
   hs-source-dirs:      test
   ghc-options:         -threaded -Wall
   default-language:    Haskell2010
