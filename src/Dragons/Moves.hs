@@ -26,7 +26,12 @@ getMoveAI timeLimit ai game = do
   bestMove <- newIORef Nothing
   let
     loop depth = do
-      writeIORef bestMove (Just (ai game depth))
+      let
+        force m = case m of
+          TakeCard !_ -> m
+          UseChopsticks !_ m' -> force m' `seq` m
+        move = ai game depth
+      force move `seq` writeIORef bestMove (Just move)
       loop (depth + 1)
 
   _ <- timeout timeLimit (loop 1)
