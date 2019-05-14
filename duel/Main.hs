@@ -33,7 +33,7 @@ processArgs = go defaultArgs where
     "-p1random":ss -> go (Args chopsticks getMoveRandom p2func) ss
     "-p2ai":name:ss ->
       go (Args chopsticks p1func (getMoveAI timeLimit (lookupAIFunc name))) ss
-    "-p2random":ss -> go (Args chopsticks getMoveRandom p2func) ss
+    "-p2random":ss -> go (Args chopsticks p1func getMoveRandom) ss
     _ -> error ("Cannot parse arguments: " ++ show strings)
 
 main :: IO ()
