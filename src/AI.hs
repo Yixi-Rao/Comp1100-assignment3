@@ -17,7 +17,7 @@ type AIFunc
 -- called "default" as your submission, but you may include other AIs
 -- for testing.
 ais :: [(String, AIFunc)]
-ais = [("default", firstCard)]
+ais = [("default", bestNextMove)]
 
 -- Equivalently: firstLegal :: GameState -> Int -> Move
 -- firstLegal simply takes the first card it sees
@@ -52,14 +52,14 @@ newAi = undefined
 data Rose a = RoseNode a [Rose a]
     deriving (Eq, Show)
 
-
+----------------------------------------------------------------------------------------------------------
 pickSushi2 :: GameState -> [GameState]
-pickSushi2 gs@(GameState p p1h p1c p2h p2c) = case gs of
-    (GameState _ [] p1c [] p2c) -> [(GameState Finished [] p1c [] p2c)]
-    (GameState Finished p1h p1c p2h p2c) -> error "game is finished, next moves is not allowed"
-    (GameState (Turn player) p1h p1c p2h p2c)
-            | player == Player1 -> moves1 p1h
-            | otherwise ->  moves2 p2h
+pickSushi2 gs@(GameState _ p1h p1c p2h p2c) = case gs of
+    (GameState _ [] p1c1 [] p2c1) -> [(GameState Finished [] p1c1 [] p2c1)]
+    (GameState Finished _ _ _ _) -> error "game is finished, next moves is not allowed"
+    (GameState (Turn player) p1h2 _ p2h2 _)
+            | player == Player1 -> moves1 p1h2
+            | otherwise ->  moves2 p2h2
 
     where moves1 :: [Card] -> [GameState]
           moves1 hands = case hands of
@@ -77,13 +77,25 @@ handCanUse (a,_) = a
 cardsChosen :: ([Card], [Card]) -> [Card]
 cardsChosen (_,b) = b
 
+-------------------------------------------------------------------------------------------------------------------------
+
 sushiTree :: GameState -> Rose GameState
 sushiTree state = RoseNode state (map sushiTree (pickSushi2 state))
 
-won :: Player -> GameState -> Bool
-won player gamestate@(GameState p _ _ _ _)
-    | scoreCards (cardsFor Player1 gamestate) > scoreCards (cardsFor Player2 gamestate) && p == Finished = True
-    | otherwise = False
+roseMap :: (a -> b) -> Rose a -> Rose b
+roseMap f tree = case tree of
+    RoseNode a [] -> RoseNode (f a) []
+    RoseNode a list -> RoseNode (f a) (foldr (\x y -> [roseMap f x] ++ y) [] list)
+
+scoreTree :: GameState -> Rose Int
+scoreTree state = roseMap (totalScores) (sushiTree state)
+
+totalScores :: GameState -> Int
+totalScores gs@(GameState t _ _ _ _) = case t of
+    Turn Player2 -> scoreCards (cardsFor Player1 gs)
+    _ -> scoreCards (cardsFor Player2 gs)
+
+---------------------------------------------------------------------------------------------------------------------------
 
 maximize :: Rose Int -> Int
 maximize tree = maximum (maximize' tree)
@@ -140,6 +152,32 @@ minimize' tree = case tree of
               n: ns
                   | pot <= n -> True
                   | otherwise -> maxlep pot ns
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+bestMove :: GameState -> Int
+bestMove gs = maximize (prune 2000 (scoreTree gs))
+
+prune :: Int -> Rose a -> Rose a
+prune n (RoseNode a list)
+    |  n == 0 = RoseNode a []
+    | otherwise = RoseNode a (map (prune (n-1)) list)
+
+getBestCard :: Int -> [GameState] -> Card
+getBestCard best states = case states of
+    x:xs
+        | scoreCards (cardsFor Player1 x) == best -> wasabiJudge (head (cardsFor Player1 x))
+        | otherwise -> getBestCard best xs
+    [] -> error "Some thing wrong, card should be in it"
+    where wasabiJudge :: Card -> Card
+          wasabiJudge card = case card of
+            Wasabi _ -> Wasabi Nothing
+            _ -> card
+
+bestNextMove ::AIFunc
+bestNextMove state 10 = case gameStatus state of
+    Turn _ -> TakeCard (getBestCard (bestMove state) (pickSushi2 state))
+    _ -> error "firstCard: called on finished game"
 
 
 
