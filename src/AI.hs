@@ -19,9 +19,9 @@ import SushiGo
 -- result, and use the final result it returns as the "best" move your
 -- AI could find.
 type AIFunc
-  = GameState -- ^ The current game
-  -> Int -- ^ How far you should look ahead
-  -> Move
+    = GameState -- ^ The current game
+    -> Int -- ^ How far you should look ahead
+    -> Move
 
 -- | The table of all AIs you have implemented. We will mark the AI
 -- called "default" as your submission, but you may include other AIs
@@ -33,135 +33,91 @@ ais = [("default", bestNextMove),("stupid",firstCard)]
 -- firstLegal simply takes the first card it sees
 firstCard :: AIFunc
 firstCard state _ = case gameStatus state of
-  Turn player -> TakeCard (head (handFor player state))
-  _ -> error "firstCard: called on finished game"
+    Turn player -> TakeCard (head (handFor player state))
+    _ -> error "firstCard: called on finished game"
 
 -- | a Rose tree can enumerate all the possible states of a Game
 data Rose a = RoseNode a [Rose a]
     deriving (Eq, Show)
 
--- part 1: generate all possible states
+-- Part 1: generate all possible states
 
--- |
+-- | Pick an initial game state and generate all the possible next States of a player
 pickSushi2 :: GameState -> [GameState]
 pickSushi2 gs@(GameState _ p1h p1c p2h p2c) = case gs of
     (GameState _ [] p1c1 [] p2c1) -> [(GameState Finished [] p1c1 [] p2c1)]
     (GameState Finished _ _ _ _) -> error "game is finished, next moves is not allowed"
     (GameState (Turn player) p1h2 _ p2h2 _)
-            | player == Player1 -> moves1 p1h2
-            | otherwise ->  moves2 p2h2
+        | player == Player1 -> player1Turn p1h2
+        | otherwise ->  player2Turn p2h2
 
-    where moves1 :: [Card] -> [GameState]
-          moves1 hands = case hands of
-            x:xs -> GameState (Turn Player2) (handCanUse handsCards) (cardsChosen handsCards) p2h p2c : moves1 xs
-                where handsCards = pickCard x p1h p1c
-            [] -> []
+          -- | If it is player 1,then it will return all possible states of what player 1 have chosen
+    where player1Turn :: [Card] -> [GameState]
+          player1Turn hands = case hands of
+              x:xs -> GameState (Turn Player2) (handCanUse handsCards) (cardsChosen handsCards) p2h p2c : player1Turn xs
+                  where handsCards = pickCard x p1h p1c
+              [] -> []
 
-
-          moves2 :: [Card] -> [GameState]
-          moves2 hs = case hs of
-            y:ys -> GameState (Turn Player1) (handCanUse handsCards2) p1c p1h (cardsChosen handsCards2) : moves2 ys
+          -- | If it is player 2,then it will return all possible states of what player 2 have chosen
+          player2Turn :: [Card] -> [GameState]
+          player2Turn hs = case hs of
+            y:ys -> GameState (Turn Player1) (handCanUse handsCards2) p1c p1h (cardsChosen handsCards2) : player2Turn ys
                 where handsCards2 = pickCard y p2h p2c
             [] -> []
 
-
+-- | it will return the hands of pickCard function
 handCanUse :: ([Card], [Card]) -> [Card]
 handCanUse (a,_) = a
 
+-- | it will return the cards of pickCard function
 cardsChosen :: ([Card], [Card]) -> [Card]
 cardsChosen (_,b) = b
 
--------------------------------------------------------------------------------------------------------------------------
+-- Part 2: Generating the trees
 
+-- | It will create a rose tree, which nodes is GameState
 sushiTree :: GameState -> Rose GameState
 sushiTree state = RoseNode state (map sushiTree (pickSushi2 state))
 
+-- | It takes an function and maps it to all the nodes of the tree
 roseMap :: (a -> b) -> Rose a -> Rose b
 roseMap f tree = case tree of
     RoseNode a [] -> RoseNode (f a) []
     RoseNode a list -> RoseNode (f a) (foldr (\x y -> roseMap f x : y) [] list)
 
+-- | It will transform the sushi tree to the Rose tree of score
 scoreTree :: GameState -> Rose Int
 scoreTree state = roseMap (won) (sushiTree state)
 
-
+-- | To value all the game state of the tree, if Player 1 scores more, then its score is 1, else -1
 won ::  GameState -> Int
 won gs
-        | scoreCards (cardsFor Player1 gs) > scoreCards (cardsFor Player2 gs) = 1
-        | scoreCards (cardsFor Player1 gs) == scoreCards (cardsFor Player2 gs) = 0
-        | otherwise = -1
----------------------------------------------------------------------------------------------------------------------------
-{---
-maximize :: Rose Int -> Int
-maximize tree = maximum (maximize' tree)
+    | scoreCards (cardsFor Player1 gs) > scoreCards (cardsFor Player2 gs) = 1
+    | scoreCards (cardsFor Player1 gs) == scoreCards (cardsFor Player2 gs) = 0
+    | otherwise = -1
 
-minimize :: Rose Int -> Int
-minimize tree = minimum (minimize' tree)
+-- Part 3: Alpha-Beta pruning algorithm
 
--- 返回的是，第一个max下面的分支的已经计算好的最小值
-maximize' :: Rose Int -> [Int]
-maximize' tree = case tree of
-    RoseNode a [] -> [a]
-    RoseNode _ list -> mapMin (map minimize' list)
+-- | Marker will be used as an index of all scores in the tree of some rows
+type Marker = Int
 
--- 提取出来第一个值当作可能的最大值
--- 重新编排这个list
-    where mapMin :: [[Int]] -> [Int]
-          mapMin (z:zs) = minimum z: (omit (minimum z) zs)
-          mapMin [] = []
-
--- 看是否可以忽略一些元素
-          omit :: Int -> [[Int]] -> [Int]
-          omit pot list1 = case list1 of
-              [] -> []
-              y:ys
-                  | minlep pot y -> omit pot ys
-                  | otherwise -> minimum y : (omit (minimum y) ys)
--- 用来判断的最大的
-          minlep :: Int -> [Int] -> Bool
-          minlep pot list2 = case list2 of
-              [] -> False
-              n: ns
-                  | pot >= n -> True
-                  | otherwise -> minlep pot ns
-
-minimize' :: Rose Int -> [Int]
-minimize' tree = case tree of
-    RoseNode a [] -> [a]
-    RoseNode _ list -> mapMax (map maximize' list)
-
-    where mapMax :: [[Int]] -> [Int]
-          mapMax (z:zs) = maximum z: omit (maximum z) zs
-          mapMax [] = []
-
-          omit :: Int -> [[Int]] -> [Int]
-          omit pot list1 = case list1 of
-              [] -> []
-              y:ys
-                  | maxlep pot y -> omit pot ys
-                  | otherwise -> maximum y : (omit (maximum y) ys)
-
-          maxlep ::  Int->  [Int]-> Bool
-          maxlep pot list2 = case list2 of
-              [] -> False
-              n: ns
-                  | pot <= n -> True
-                  | otherwise -> maxlep pot ns
----}
+-- | Take the maximum of a list of minimas of further value
 maximize :: Rose Int -> (Int,Marker)
 maximize tree = (maximum (removeMark (maximize' tree)),maximum (getMark (maximize' tree)))
 
+-- | It will remove the markers,and return the scores
 
 removeMark :: [(Int,Int)] -> [Int]
 removeMark mix = case mix of
-     (a,_):xs -> a : removeMark xs
-     [] -> []
+    (a,_):xs -> a : removeMark xs
+    [] -> []
 
+-- | Ignore the scores and return all the markers in a list
 getMark :: [(Int,Int)] -> [Int]
 getMark mix = case mix of
     (_,b):ys -> b: getMark ys
     [] -> []
-type Marker = Int
+
 -- 返回的是，第一个max下面的分支的已经计算好的最小值
 maximize' :: Rose Int -> [(Int,Marker)]
 maximize' tree = case tree of
