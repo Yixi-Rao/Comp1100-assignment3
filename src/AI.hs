@@ -12,8 +12,8 @@ module AI where
 
 import SushiGo
 
--- | The type of AI functions. Do not change this.
---
+
+
 -- The test program will repeatedly call an AI function with
 -- increasing lookahead values until it takes too long to generate a
 -- result, and use the final result it returns as the "best" move your
@@ -36,11 +36,13 @@ firstCard state _ = case gameStatus state of
   Turn player -> TakeCard (head (handFor player state))
   _ -> error "firstCard: called on finished game"
 
-
+-- | a Rose tree can enumerate all the possible states of a Game
 data Rose a = RoseNode a [Rose a]
     deriving (Eq, Show)
 
-----------------------------------------------------------------------------------------------------------
+-- part 1: generate all possible states
+
+-- |
 pickSushi2 :: GameState -> [GameState]
 pickSushi2 gs@(GameState _ p1h p1c p2h p2c) = case gs of
     (GameState _ [] p1c1 [] p2c1) -> [(GameState Finished [] p1c1 [] p2c1)]
@@ -250,16 +252,19 @@ prune n (RoseNode a list)
     |  n == 0 = RoseNode a []
     | otherwise = RoseNode a (map (prune (n-1)) list)
 
-getBestCard :: (Int,Marker) -> [GameState] -> Card
-getBestCard (_,marks) states = wasabiJudge (head (cardsFor Player1 (states!! marks)))
+getBestCard :: (Int,Marker) -> GameState -> Card
+getBestCard (_,marks) state@(GameState (Turn player) _ _ _ _) = wasabiJudge (head (cardsFor player (pickSushi2 state!! marks)))
     where wasabiJudge :: Card -> Card
           wasabiJudge card = case card of
             Wasabi (Just (Nigiri int)) -> Nigiri int
             _ -> card
+getBestCard _ (GameState Finished _ _ _ _) = error "it is finished,can not get best card"
+
+
 
 bestNextMove ::AIFunc
 bestNextMove state _ = case gameStatus state of
-    Turn _ -> TakeCard (getBestCard (bestMove state) (pickSushi2 state))
+    Turn _ -> TakeCard (getBestCard (bestMove state) state)
     _ -> error "firstCard: called on finished game"
 
 
