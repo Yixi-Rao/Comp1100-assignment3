@@ -101,9 +101,9 @@ won gs
 -- | Marker will be used as an index of all scores in the tree of some rows
 type Marker = Int
 
--- | Take the maximum of a list of minimas of further value
+-- | Take the maximum of a list of minimas of further value and index
 maximize :: Rose Int -> (Int,Marker)
-maximize tree = (maximum (removeMark (maximize' tree)),maximum (getMark (maximize' tree)))
+maximize tree = (maximum (removeMark (minimaList tree)),maximum (getMark (minimaList tree)))
 
 -- | It will remove the markers,and return the scores
 
@@ -118,106 +118,94 @@ getMark mix = case mix of
     (_,b):ys -> b: getMark ys
     [] -> []
 
--- 返回的是，第一个max下面的分支的已经计算好的最小值
-maximize' :: Rose Int -> [(Int,Marker)]
-maximize' tree = case tree of
+-- | It will return the list of minimas, which is evaluated further in the tree
+minimaList :: Rose Int -> [(Int,Marker)]
+minimaList tree = case tree of
     RoseNode a [] -> [(a,0)]
-    RoseNode _ list -> mapMin (map minimize' list)
+    RoseNode _ list -> findMaxs (map maximumList list)
 
-          --
-    where mapMin :: [[(Int,Marker)]] -> [(Int,Marker)]
-          mapMin (z:zs) = (mayLarge,0): (omit 1 mayLarge zs)
-            where mayLarge = (minimum (removeMark z))
-          mapMin [] = []
+          -- | It will try to evaluate the minimum of the list with some omitting works and mark it with index
+    where findMaxs :: [[(Int,Marker)]] -> [(Int,Marker)]
+          findMaxs (z:zs) = (mayLarge,0): (omitMax 1 mayLarge zs)
+              where mayLarge = (minimum (removeMark z))
+          findMaxs [] = []
 
 
 
-          --
-          omit :: Int -> Int -> [[(Int,Marker)]] -> [(Int,Marker)]
-          omit marker pot list1 = case list1 of
+          -- | it will omit and delete some branches, so it will not be search
+          omitMax :: Int -> Int -> [[(Int,Marker)]] -> [(Int,Marker)]
+          omitMax marker pot list1 = case list1 of
               [] -> []
               y:ys
-                  | minlep pot potRest -> omit (marker+1) pot ys
-                  | otherwise -> (minimum potRest,marker) : (omit (marker+1) (minimum potRest) ys)
-                    where potRest = removeMark y
+                  | decideOmit pot potRest -> omitMax (marker + 1) pot ys
+                  | otherwise -> (minimum potRest,marker) : (omitMax (marker + 1) (minimum potRest) ys)
+                      where potRest = removeMark y
 
-          --
-          minlep :: Int -> [Int] -> Bool
-          minlep pot1 list2 = case list2 of
+          -- | This function will judge whether or not it can be omitted  by comparing the potential maximum to next one
+          decideOmit :: Int -> [Int] -> Bool
+          decideOmit pot1 list2 = case list2 of
               [] -> False
-              n: ns
+              n:ns
                   | pot1 >= n -> True
-                  | otherwise -> minlep pot1 ns
+                  | otherwise -> decideOmit pot1 ns
 
-minimize' :: Rose Int -> [(Int,Marker)]
-minimize' tree = case tree of
+-- | it will return the list of maximum, which is evaluated further in the tree
+maximumList :: Rose Int -> [(Int,Marker)]
+maximumList tree = case tree of
     RoseNode a [] -> [(a,0)]
-    RoseNode _ list -> mapMax (map maximize' list)
+    RoseNode _ list -> findMins (map minimaList list)
 
-    where mapMax :: [[(Int,Marker)]] -> [(Int,Marker)]
-          mapMax (z:zs) = (maySmall,0): (omit 0 maySmall zs)
-            where maySmall = maximum (removeMark z)
-          mapMax [] = []
+          -- | It will try to evaluate the maximum of the list with some omitting works and mark it with index
+    where findMins :: [[(Int,Marker)]] -> [(Int,Marker)]
+          findMins (z:zs) = (maySmall,0): (omitMin 0 maySmall zs)
+              where maySmall = maximum (removeMark z)
+          findMins [] = []
 
-          omit :: Int -> Int -> [[(Int,Marker)]] -> [(Int,Marker)]
-          omit marker pot list1 = case list1 of
+          -- | it will omit and delete some branches, so it will not be search
+          omitMin :: Int -> Int -> [[(Int,Marker)]] -> [(Int,Marker)]
+          omitMin marker pot list1 = case list1 of
               [] -> []
               y:ys
-                  | maxlep pot potRest2 -> omit (marker+1) pot ys
-                  | otherwise -> (maximum potRest2,marker+1) : (omit (marker+1) (maximum potRest2) ys)
-                    where potRest2 = removeMark y
+                  | decideOmit1 pot potRest2 -> omitMin (marker + 1) pot ys
+                  | otherwise -> (maximum potRest2,marker + 1) : (omitMin (marker + 1) (maximum potRest2) ys)
+                      where potRest2 = removeMark y
 
-          maxlep ::  Int->  [Int]-> Bool
-          maxlep pot1 list2 = case list2 of
+          -- | This function will judge whether or not it can be omitted  by comparing the potential minimum to next one
+          decideOmit1 ::  Int->  [Int]-> Bool
+          decideOmit1 pot1 list2 = case list2 of
               [] -> False
-              n: ns
+              n:ns
                   | pot1 <= n -> True
-                  | otherwise -> maxlep pot1 ns
--------------------------------------------------------------------------------------------------------------------------------
-{-
-bestMove :: GameState -> Int
-bestMove gs = maximize (prune 5 (scoreTree gs))
+                  | otherwise -> decideOmit1 pot1 ns
 
-prune :: Int -> Rose a -> Rose a
-prune n (RoseNode a list)
-    |  n == 0 = RoseNode a []
-    | otherwise = RoseNode a (map (prune (n-1)) list)
+-- Part 4: Get the Best Card
 
-getBestCard :: Int -> [GameState] -> Card
-getBestCard best states = case states of
-    x:xs
-        | scoreCards (cardsFor Player1 x) == best -> wasabiJudge (head (cardsFor Player1 x))
-        | otherwise -> getBestCard best xs
-    [] -> error "Some thing wrong, card should be in it"
-    where wasabiJudge :: Card -> Card
-          wasabiJudge card = case card of
-            Wasabi _ -> Wasabi Nothing
-            _ -> card
-
-bestNextMove ::AIFunc
-bestNextMove state n = case gameStatus state of
-    Turn _ -> TakeCard (getBestCard (bestMove state) (pickSushi2 state))
-    _ -> error "firstCard: called on finished game"
--}
+-- | It will return the Best value so far and marker of a pruning tree
 bestMove :: GameState -> (Int,Marker)
 bestMove gs = maximize (prune 5 (scoreTree gs))
 
-
+-- | This Function will cut the tree with the depths or rows that you want
 prune :: Int -> Rose a -> Rose a
 prune n (RoseNode a list)
-    |  n == 0 = RoseNode a []
+    | n == 0 = RoseNode a []
     | otherwise = RoseNode a (map (prune (n-1)) list)
 
+-- | This function will find the best card of next state according to the index(marker)
 getBestCard :: (Int,Marker) -> GameState -> Card
-getBestCard (_,marks) state@(GameState (Turn player) _ _ _ _) = wasabiJudge (head (cardsFor player (pickSushi2 state!! marks)))
+getBestCard (_,marks) state@(GameState (Turn player) _ _ _ _) = wasabiJudge (head (cardsFor player indexState))
+
+          -- | Due to the special case of wasabi, This function will check what kind of wasabi it is added to cards
+          -- | and return the what actual card It is
     where wasabiJudge :: Card -> Card
           wasabiJudge card = case card of
-            Wasabi (Just (Nigiri int)) -> Nigiri int
-            _ -> card
+              Wasabi (Just (Nigiri int)) -> Nigiri int
+              _ -> card
+
+          indexState = (pickSushi2 state!! marks)
 getBestCard _ (GameState Finished _ _ _ _) = error "it is finished,can not get best card"
 
 
-
+-- | This is the Ai function,which will return the move of taking best card
 bestNextMove ::AIFunc
 bestNextMove state _ = case gameStatus state of
     Turn _ -> TakeCard (getBestCard (bestMove state) state)
