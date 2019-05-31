@@ -43,8 +43,8 @@ data Rose a = RoseNode a [Rose a]
 -- Part 1: generate all possible states
 
 -- | Pick an initial game state and generate all the possible next States of a player
-pickSushi2 :: GameState -> [GameState]
-pickSushi2 gs@(GameState _ p1h p1c p2h p2c) = case gs of
+pickSushi :: GameState -> [GameState]
+pickSushi gs@(GameState _ p1h p1c p2h p2c) = case gs of
     (GameState _ [] p1c1 [] p2c1) -> [(GameState Finished [] p1c1 [] p2c1)]
     (GameState Finished _ _ _ _) -> error "game is finished, next moves is not allowed"
     (GameState (Turn player) p1h2 _ p2h2 _)
@@ -77,7 +77,7 @@ cardsChosen (_,b) = b
 
 -- | It will create a rose tree, which nodes is GameState
 sushiTree :: GameState -> Rose GameState
-sushiTree state = RoseNode state (map sushiTree (pickSushi2 state))
+sushiTree state = RoseNode state (map sushiTree (pickSushi state))
 
 -- | It takes an function and maps it to all the nodes of the tree
 roseMap :: (a -> b) -> Rose a -> Rose b
@@ -87,13 +87,14 @@ roseMap f tree = case tree of
 
 -- | It will transform the sushi tree to the Rose tree of score
 scoreTree :: GameState -> Rose Int
-scoreTree state = roseMap (won) (sushiTree state)
+scoreTree state@(GameState (Turn player) _ _ _ _) = roseMap (won player) (sushiTree state)
+scoreTree (GameState Finished _ _ _ _) = error "No more score when game is finished"
 
 -- | To value all the game state of the tree, if Player 1 scores more, then its score is 1, else -1
-won ::  GameState -> Int
-won gs
-    | scoreCards (cardsFor Player1 gs) > scoreCards (cardsFor Player2 gs) = 1
-    | scoreCards (cardsFor Player1 gs) == scoreCards (cardsFor Player2 gs) = 0
+won ::  Player -> GameState -> Int
+won player gs
+    | scoreCards (cardsFor player gs) > scoreCards (cardsFor (otherPlayer player) gs) = 1
+    | scoreCards (cardsFor player gs) == scoreCards (cardsFor (otherPlayer player) gs) = 0
     | otherwise = -1
 
 -- Part 3: Alpha-Beta pruning algorithm
@@ -201,7 +202,7 @@ getBestCard (_,marks) state@(GameState (Turn player) _ _ _ _) = wasabiJudge (hea
               Wasabi (Just (Nigiri int)) -> Nigiri int
               _ -> card
 
-          indexState = (pickSushi2 state!! marks)
+          indexState = (pickSushi state!! marks)
 getBestCard _ (GameState Finished _ _ _ _) = error "it is finished,can not get best card"
 
 
@@ -210,5 +211,4 @@ bestNextMove ::AIFunc
 bestNextMove state _ = case gameStatus state of
     Turn _ -> TakeCard (getBestCard (bestMove state) state)
     _ -> error "firstCard: called on finished game"
-
 
