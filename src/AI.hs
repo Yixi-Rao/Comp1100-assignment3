@@ -5,7 +5,8 @@ Maintainer  : <u6826541@anu.edu.an>
 Name        : <Yixi Rao>
 Assignment  : <3>
 
-<Ai will decide which move to make to get the highest points>
+<The test program will repeatedly call an AI function with,increasing lookahead values until it takes too long to generate a
+result, and use the final result it returns as the "best" move your AI could find.>
 
 -}
 module AI where
@@ -16,20 +17,18 @@ import SushiGo
 
 -- The test program will repeatedly call an AI function with
 -- increasing lookahead values until it takes too long to generate a
--- result, and use the final result it returns as the "best" move your
+-- result, and use the final result it returns as the "best" move my
 -- AI could find.
 type AIFunc
     = GameState -- ^ The current game
     -> Int -- ^ How far you should look ahead
     -> Move
 
--- | The table of all AIs you have implemented. We will mark the AI
--- called "default" as your submission, but you may include other AIs
--- for testing.
+-- | The table of all AIs you have implemented.
 ais :: [(String, AIFunc)]
 ais = [("default", bestNextMove),("stupid",firstCard)]
 
--- Equivalently: firstLegal :: GameState -> Int -> Move
+
 -- firstLegal simply takes the first card it sees
 firstCard :: AIFunc
 firstCard state _ = case gameStatus state of
@@ -54,16 +53,18 @@ pickSushi gs@(GameState _ p1h p1c p2h p2c) = case gs of
           -- | If it is player 1,then it will return all possible states of what player 1 have chosen
     where player1Turn :: [Card] -> [GameState]
           player1Turn hands = case hands of
+              Chopsticks:_ -> error "Chopsticks is not contained in this game"
+              [] -> []
               x:xs -> GameState (Turn Player2) (handCanUse handsCards) (cardsChosen handsCards) p2h p2c : player1Turn xs
                   where handsCards = pickCard x p1h p1c
-              [] -> []
 
           -- | If it is player 2,then it will return all possible states of what player 2 have chosen
           player2Turn :: [Card] -> [GameState]
           player2Turn hs = case hs of
-            y:ys -> GameState (Turn Player1) (handCanUse handsCards2) p1c p1h (cardsChosen handsCards2) : player2Turn ys
-                where handsCards2 = pickCard y p2h p2c
-            [] -> []
+              Chopsticks:_ -> error "Chopsticks is not contained in this game"
+              [] -> []
+              y:ys -> GameState (Turn Player1) (handCanUse handsCards2) p1c p1h (cardsChosen handsCards2) : player2Turn ys
+                  where handsCards2 = pickCard y p2h p2c
 
 -- | it will return the hands of pickCard function
 handCanUse :: ([Card], [Card]) -> [Card]
@@ -127,11 +128,9 @@ minimaList tree = case tree of
 
           -- | It will try to evaluate the minimum of the list with some omitting works and mark it with index
     where findMaxs :: [[(Int,Marker)]] -> [(Int,Marker)]
+          findMaxs [] = []
           findMaxs (z:zs) = (mayLarge,0): (omitMax 1 mayLarge zs)
               where mayLarge = (minimum (removeMark z))
-          findMaxs [] = []
-
-
 
           -- | it will omit and delete some branches, so it will not be search
           omitMax :: Int -> Int -> [[(Int,Marker)]] -> [(Int,Marker)]
@@ -158,9 +157,9 @@ maximumList tree = case tree of
 
           -- | It will try to evaluate the maximum of the list with some omitting works and mark it with index
     where findMins :: [[(Int,Marker)]] -> [(Int,Marker)]
+          findMins [] = []
           findMins (z:zs) = (maySmall,0): (omitMin 0 maySmall zs)
               where maySmall = maximum (removeMark z)
-          findMins [] = []
 
           -- | it will omit and delete some branches, so it will not be search
           omitMin :: Int -> Int -> [[(Int,Marker)]] -> [(Int,Marker)]
@@ -193,6 +192,7 @@ prune n (RoseNode a list)
 
 -- | This function will find the best card of next state according to the index(marker)
 getBestCard :: (Int,Marker) -> GameState -> Card
+getBestCard _ (GameState Finished _ _ _ _) = error "it is finished,can not get best card"
 getBestCard (_,marks) state@(GameState (Turn player) _ _ _ _) = wasabiJudge (head (cardsFor player indexState))
 
           -- | Due to the special case of wasabi, This function will check what kind of wasabi it is added to cards
@@ -201,10 +201,7 @@ getBestCard (_,marks) state@(GameState (Turn player) _ _ _ _) = wasabiJudge (hea
           wasabiJudge card = case card of
               Wasabi (Just (Nigiri int)) -> Nigiri int
               _ -> card
-
           indexState = (pickSushi state!! marks)
-getBestCard _ (GameState Finished _ _ _ _) = error "it is finished,can not get best card"
-
 
 -- | This is the Ai function,which will return the move of taking best card
 bestNextMove ::AIFunc

@@ -4,17 +4,15 @@ import SushiGoTests
 import Testing
 import AI
 import SushiGo
--- | The list of tests to run. When you define additional test groups,
--- you must list them here or they will not be checked.
---
--- We wrote a number of tests while developing the assignment - they
--- are in SushiGoTests.hs. This leaves AllTests.hs free for your
--- tests. You may want to read them to see how the tests are written,
--- or to get a handle on how the game works.
+
+
+
+-- | The list of tests to run.
 allTests :: Test
 allTests = TestGroup "allTests"
-  [ sushiTreeTests
+  [ sushiGoTests
   , nextStateTests
+  , sushiTreeTests
   , alphaBetaTests
   , bestCardTests
   ]
